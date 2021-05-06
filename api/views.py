@@ -35,32 +35,50 @@ def ping_view(request):
 def posts_view(request):
     tags = request.GET.get('tags')
     # sorted_by valid fields: id, reads, likes, popularity
-    sorted_by = request.GET.get('sorted_by')
+    sorted_by = request.GET.get('sortedBy')
     # direction valid fields: asc, desc
     direction = request.GET.get('direction')
     base_url = 'https://api.hatchways.io/assessment/blog/posts'
+
     requests_arr = []
     post_arr = []
+    tag_arr = []
     response_data = {'posts': []}
-    if sorted_by != None:
-        base_url += "?sorted_by=" + sorted_by 
-    if direction != None:
-        base_url += "?direction=" + direction 
     if tags != None:
         tag_arr = tags.split(',')
         for tag in tag_arr:
-            requests_arr.append(base_url + "?tag=" + tag)
+            requests_arr.append(base_url + "?tag=" + tag + "&")
+    if sorted_by != None:
+        if sorted_by != 'id' and sorted_by != 'reads' and sorted_by != 'likes' and sorted_by != 'popularity':
+            return JsonResponse({"error": "sortBy parameter is invalid"})
+        else: 
+            for i in range(0, len(requests_arr)):
+                requests_arr[i] = requests_arr[i] + "sortedBy=" + sorted_by
+
+    if direction != None:
+        if direction != 'asc' and direction != 'desc':
+            return JsonResponse({"error": "direction parameter is invalid"})
+        else:
+            for i in range(0, len(requests_arr)):
+                requests_arr[i] = requests_arr[i] + "direction=" + direction
+
+    else: 
+        requests_arr.append(base_url)
     for request in requests_arr:
         response = requests.get(request)
         data = response.json()
-        for post in range(0, len(data["posts"])):
-            response_data["posts"].append(data["posts"][post])
-    # response_data = json.dumps(post_arr)
+        try: 
+            for post in range(0, len(data["posts"])):
+                response_data["posts"].append(data["posts"][post])
+        except KeyError as e:
+            print(e)
+            return JsonResponse(data)
+    if sorted_by != None: 
+        if direction == "asc":
+            response_data["posts"] = sorted(response_data["posts"], key=lambda k: k.get(sorted_by, 0))
+        elif direction == "desc":
+            response_data["posts"] = sorted(response_data["posts"], key=lambda k: k.get(sorted_by, 0), reverse=True)
+        return JsonResponse(response_data, safe=False)
     return JsonResponse(response_data, safe=False)
-                # response_data["posts"] = data["posts"]
-        # except KeyError as e: 
-        #     print(e)
-        #     return render(request, 'error.html', {
-        #             'error': data['error']
-        #     })
+
         
