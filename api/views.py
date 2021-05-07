@@ -5,6 +5,9 @@ from django.http import JsonResponse
 from .models import Post 
 import requests
 import json
+from django.core.cache import cache
+from pymemcache.client import base
+cache_client = base.Client(('localhost', 11211))
 # Create your views here.
 # class PostViewSet(viewsets.ModelViewSet):
 #     queryset = Post.objects.all().order_by('id')
@@ -25,13 +28,17 @@ def home(request):
         return render(request, 'error.html', {
                 'error': data['error']
         })
-
+# view for GET /api/ping
 def ping_view(request):
     data = {
         "success": "True"
     }
+    if cache_client.get("ping_view"):
+        return JsonResponse(json.loads((cache_client.get("ping_view").decode('utf8').replace("'", "\""))), safe=False)
+    cache_client.set("ping_view", data)
     return JsonResponse(data)
 
+# view for GET /api/posts?tags=<tags_go_here>&sortedBy=<post_field_here>&direction=<asc_or_desc>
 def posts_view(request):
     tags = request.GET.get('tags')
     # sorted_by valid fields: id, reads, likes, popularity
